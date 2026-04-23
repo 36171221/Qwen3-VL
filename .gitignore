@@ -1,0 +1,24 @@
+.ftpignore
+.ftpconfig
+.vscode
+
+# Byte-compiled / optimized / DLL files
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+*$py.class
+*.swp
+*.png
+*.zip
+
+/data
+/logs
+/pretrained
+/interact
+/pretrain_src/datasets
+/pretrain_src/img_features
+/tested_files
+/bert_config
+# /TagaVLM/transformers-4.40.0
+/TagaVLM/flash_attn-2.7.0.post1+cu12torch2.1cxx11abiFALSE-cp38-cp38-linux_x86_64.whl
+/output
