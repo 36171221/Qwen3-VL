@@ -89,7 +89,7 @@ def set_model(model_args, model):
         model.lm_head.requires_grad = False
 
 
-def train(attn_implementation=None):
+def train(attn_implementation="flash_attention_2"):
     global local_rank
 
     parser = transformers.HfArgumentParser(
@@ -100,35 +100,11 @@ def train(attn_implementation=None):
     local_rank = training_args.local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
-    nav_graph_requested = bool(
-        data_args.use_nav_graph
-        or any(flag in data_args.dataset_use.lower() for flag in ("nav", "dagger"))
-    )
-    if nav_graph_requested:
-        data_args.data_flatten = False
-        data_args.data_packing = False
-        data_args.use_nav_graph = True
-        training_args.attn_implementation = "sdpa"
-        print("[Info] Navigation graph mode enabled; forcing sdpa attention and disabling flatten/packing.")
-
-    attn_implementation = attn_implementation or training_args.attn_implementation
-    if nav_graph_requested:
-        attn_implementation = "sdpa"
-
-    model_config = None
-    if nav_graph_requested:
-        model_config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
-        model_config.graph_sprels = True
-        if hasattr(model_config, "text_config") and model_config.text_config is not None:
-            model_config.text_config.graph_sprels = True
-    model_config_kwargs = {"config": model_config} if model_config is not None else {}
-
     if "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            **model_config_kwargs,
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
@@ -137,7 +113,6 @@ def train(attn_implementation=None):
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            **model_config_kwargs,
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
@@ -146,7 +121,6 @@ def train(attn_implementation=None):
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            **model_config_kwargs,
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen2.5vl"
@@ -155,20 +129,16 @@ def train(attn_implementation=None):
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            **model_config_kwargs,
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen2vl"
-
-    if nav_graph_requested and data_args.model_type != "qwen2.5vl":
-        raise NotImplementedError("Navigation graph bias is currently implemented only for Qwen2.5-VL.")
 
     print(f'the initlized model is {model_args.model_name_or_path} the class is {model.__class__.__name__}')
     processor = AutoProcessor.from_pretrained(
         model_args.model_name_or_path,
     )
 
-    if (data_args.data_flatten or data_args.data_packing) and not nav_graph_requested:
+    if data_args.data_flatten or data_args.data_packing:
         replace_qwen2_vl_attention_class()
     model.config.use_cache = False
 
@@ -233,4 +203,4 @@ def train(attn_implementation=None):
 
 
 if __name__ == "__main__":
-    train()
+    train(attn_implementation="flash_attention_2")
