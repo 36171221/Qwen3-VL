@@ -14,9 +14,9 @@ llm=${LLM_MODEL:-"/root/ljx_home/Qwen3-VL/data/Qwen2.5-VL-3B-Instruct"}
 
 # Training hyperparameters
 lr=${LR:-1e-5}
-batch_size=${BATCH_SIZE:-2}
-grad_accum_steps=${GRAD_ACCUM_STEPS:-8}
-num_train_epochs=${NUM_TRAIN_EPOCHS:-1.0}
+batch_size=${BATCH_SIZE:-1}
+grad_accum_steps=${GRAD_ACCUM_STEPS:-16}
+num_train_epochs=${NUM_TRAIN_EPOCHS:-2.0}
 
 # Training entry point
 entry_file=qwenvl/train/train_qwen.py
@@ -26,11 +26,11 @@ entry_file=qwenvl/train/train_qwen.py
 # - llava_nav_v4: original nav supervision with candidate-view stitching
 # - tagavlm_dagger_r2r_20260412_193919: dagger-generated nav data
 # You can append other VQA/video datasets by overriding DATASETS env var.
-datasets=${DATASETS:-tagavlm_dagger_r2r_20260412_193919}
+datasets=${DATASETS:-vlnce_oracle}
 
 # Output configuration
 run_name=${RUN_NAME:-qwen2_5_vl_3b_nav_graph}
-output_dir=${OUTPUT_DIR:-./output/qwen2_5_vl_3b_nav_graph}
+output_dir=${OUTPUT_DIR:-./output/qwen2_5_vl_3b_nav_graph_lr1e-5_bs1_acc16_epoch2_oracle_4-24}
 report_to=${REPORT_TO:-none}
 
 # Training arguments

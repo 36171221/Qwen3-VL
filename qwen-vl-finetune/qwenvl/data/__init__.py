@@ -43,6 +43,13 @@ TAGAVLM_DAGGER_R2R_20260412_193919 = {
     "nav_pair_dist_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
 }
 
+VLNCE_ORACLE = {
+    "annotation_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/finetuning_lables_co.json",
+    "data_path": "/root/ljx_home/ETPNav/data",
+    "nav_graph": True,
+    "nav_pair_dist_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/gmap_pair_dist.npz",
+}
+
 data_dict = {
     "cambrian_737k": CAMBRIAN_737K,
     "cambrian_737k_pack": CAMBRIAN_737K_PACK,
@@ -51,6 +58,7 @@ data_dict = {
     "videochatgpt": VIDEOCHATGPT,
     "llava_nav_v4": LLAVA_NAV_V4,
     "tagavlm_dagger_r2r_20260412_193919": TAGAVLM_DAGGER_R2R_20260412_193919,
+    'vlnce_oracle': VLNCE_ORACLE,
 }
 
 
@@ -64,10 +72,12 @@ def parse_sampling_rate(dataset_name):
 def data_list(dataset_names):
     config_list = []
     for dataset_name in dataset_names:
+        dataset_name = dataset_name.strip()
         sampling_rate = parse_sampling_rate(dataset_name)
         dataset_name = re.sub(r"%(\d+)$", "", dataset_name)
-        if dataset_name in data_dict.keys():
-            config = data_dict[dataset_name].copy()
+        dataset_key = dataset_name.lower()
+        if dataset_key in data_dict.keys():
+            config = data_dict[dataset_key].copy()
             config["sampling_rate"] = sampling_rate
             config_list.append(config)
         elif Path(dataset_name).exists():
