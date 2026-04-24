@@ -10,6 +10,16 @@ from tqdm import tqdm
 import concurrent.futures
 import time
 
+NAV_SPECIAL_TOKENS = [
+    "<graph>",
+    "<node>",
+    "</node>",
+    "<stop>",
+    "<nav>",
+    "</nav>",
+    "<idx>",
+    "</idx>",
+]
 
 def read_data(file_path):
     """Read JSON or JSONL file"""
@@ -132,6 +142,7 @@ datasets = {
 data_args = DataArguments()
 model_path = 'path/to/your/model'
 tokenizer = AutoTokenizer.from_pretrained(model_path)
+tokenizer.add_special_tokens({"additional_special_tokens": NAV_SPECIAL_TOKENS})
 tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 base_image_processor = Qwen2VLImageProcessor.from_pretrained(model_path)
 print(f'Successfully loaded model components from {model_path}')

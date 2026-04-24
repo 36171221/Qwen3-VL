@@ -37,10 +37,10 @@ LLAVA_NAV_V4 = {
 }
 
 TAGAVLM_DAGGER_R2R_20260412_193919 = {
-    "annotation_path": "/home/data/ljx/tagavlm_dager_data/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json",
-    "data_path": "/home/data/ljx/tagavlm_dager_data",
+    "annotation_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json",
+    "data_path": "/root/ljx_home/ETPNav/data",
     "nav_graph": True,
-    "nav_pair_dist_path": "/home/data/ljx/tagavlm_dager_data/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
+    "nav_pair_dist_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
 }
 
 data_dict = {

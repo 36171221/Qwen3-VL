@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 """
 The Trainer class, to easily train a 🤗 Transformers from scratch or finetune it on a new task.
 """

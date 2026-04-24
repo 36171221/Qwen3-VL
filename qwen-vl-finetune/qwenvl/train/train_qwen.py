@@ -41,6 +41,17 @@ from qwenvl.train.argument import (
 )
 from transformers import AutoProcessor, Trainer
 
+NAV_SPECIAL_TOKENS = [
+    "<graph>",
+    "<node>",
+    "</node>",
+    "<stop>",
+    "<nav>",
+    "</nav>",
+    "<idx>",
+    "</idx>",
+]
+
 local_rank = None
 
 
@@ -97,6 +108,10 @@ def train(attn_implementation=None):
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    report_to = training_args.report_to
+    if not report_to or (isinstance(report_to, str) and report_to.lower() == "none"):
+        training_args.report_to = "none"
+
     local_rank = training_args.local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
@@ -115,15 +130,17 @@ def train(attn_implementation=None):
     if nav_graph_requested:
         attn_implementation = "sdpa"
 
-    model_config = None
+    model_config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
     if nav_graph_requested:
-        model_config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
         model_config.graph_sprels = True
         if hasattr(model_config, "text_config") and model_config.text_config is not None:
             model_config.text_config.graph_sprels = True
     model_config_kwargs = {"config": model_config} if model_config is not None else {}
 
-    if "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
+    model_type = getattr(model_config, "model_type", "").lower()
+    model_name = Path(model_args.model_name_or_path.rstrip("/")).name.lower()
+
+    if model_type.startswith("qwen3_vl_moe") or (model_type.startswith("qwen3") and "a" in model_name):
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
@@ -132,7 +149,7 @@ def train(attn_implementation=None):
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
-    elif "qwen3" in model_args.model_name_or_path.lower():
+    elif model_type.startswith("qwen3"):
         model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
@@ -141,7 +158,7 @@ def train(attn_implementation=None):
             dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
-    elif "qwen2.5" in model_args.model_name_or_path.lower():
+    elif model_type.startswith("qwen2_5"):
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
@@ -189,6 +206,14 @@ def train(attn_implementation=None):
         padding_side="right",
         use_fast=False,
     )
+
+    added_tokens = tokenizer.add_special_tokens(
+        {"additional_special_tokens": NAV_SPECIAL_TOKENS}
+    )
+    processor.tokenizer = tokenizer
+    if added_tokens > 0:
+        print(f"[Info] Added {added_tokens} special tokens to tokenizer.")
+    model.resize_token_embeddings(len(tokenizer))
 
     if training_args.lora_enable:
         from peft import LoraConfig, get_peft_model, TaskType

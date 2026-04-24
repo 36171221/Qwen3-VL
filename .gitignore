@@ -22,3 +22,4 @@ __pycache__/
 # /TagaVLM/transformers-4.40.0
 /TagaVLM/flash_attn-2.7.0.post1+cu12torch2.1cxx11abiFALSE-cp38-cp38-linux_x86_64.whl
 /output
+qwen-vl-finetune/output
