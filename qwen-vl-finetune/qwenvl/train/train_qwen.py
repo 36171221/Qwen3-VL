@@ -253,7 +253,8 @@ def train(attn_implementation=None):
     model.config.use_cache = True
 
     safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
-    
+
+    tokenizer.save_pretrained(training_args.output_dir)
     processor.save_pretrained(training_args.output_dir)
 
 

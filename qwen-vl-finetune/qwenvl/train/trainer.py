@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Sequence, Tuple, Callable
 
 import torch
-from flash_attn.flash_attn_interface import flash_attn_varlen_func
 from transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from transformers import Trainer
 from transformers.cache_utils import Cache
@@ -29,6 +28,11 @@ from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
+try:
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func
+except ImportError:
+    flash_attn_varlen_func = None
+
 
 def flash_attention_forward(
     module: torch.nn.Module,
@@ -42,6 +46,11 @@ def flash_attention_forward(
     softcap: Optional[float] = None,
     **kwargs,
 ) -> tuple[torch.Tensor, None]:
+    if flash_attn_varlen_func is None:
+        raise ImportError(
+            "flash_attn is required only when using flash_attention_2. "
+            "The current training script can use --attn_implementation sdpa without flash-attn."
+        )
     if kwargs.get("output_attentions", False) or kwargs.get("head_mask") is not None:
         logger.warning_once(
             "`flash_attention_2` does not support `output_attentions=True` or `head_mask`."

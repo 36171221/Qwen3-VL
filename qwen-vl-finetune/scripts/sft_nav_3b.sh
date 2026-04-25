@@ -10,12 +10,12 @@ NPROC_PER_NODE=${NPROC_PER_NODE:-1}
 deepspeed=./scripts/zero3.json
 
 # Model configuration
-llm=${LLM_MODEL:-"/root/ljx_home/Qwen3-VL/data/Qwen2.5-VL-3B-Instruct"}
+llm=${LLM_MODEL:-"/root/autodl-tmp/Qwen2.5-VL-3B-Instruct"}
 
 # Training hyperparameters
 lr=${LR:-1e-5}
-batch_size=${BATCH_SIZE:-1}
-grad_accum_steps=${GRAD_ACCUM_STEPS:-16}
+batch_size=${BATCH_SIZE:-2}
+grad_accum_steps=${GRAD_ACCUM_STEPS:-8}
 num_train_epochs=${NUM_TRAIN_EPOCHS:-2.0}
 
 # Training entry point
@@ -30,7 +30,7 @@ datasets=${DATASETS:-vlnce_oracle}
 
 # Output configuration
 run_name=${RUN_NAME:-qwen2_5_vl_3b_nav_graph}
-output_dir=${OUTPUT_DIR:-./output/qwen2_5_vl_3b_nav_graph_lr1e-5_bs1_acc16_epoch2_oracle_4-24}
+output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen2_5_vl_3b_nav_graph_lr1e-5_bs2_acc8_epoch2_oracle_4-25}
 report_to=${REPORT_TO:-none}
 
 # Training arguments
@@ -73,7 +73,7 @@ echo "  datasets: ${datasets}"
 echo "  output: ${output_dir}"
 echo "  attn: sdpa"
 
-CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=${NPROC_PER_NODE} \
+CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=${NPROC_PER_NODE} \
          --master_addr=${MASTER_ADDR} \
          --master_port=${MASTER_PORT} \
          ${entry_file} ${args}

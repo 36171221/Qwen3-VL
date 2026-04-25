@@ -37,17 +37,17 @@ LLAVA_NAV_V4 = {
 }
 
 TAGAVLM_DAGGER_R2R_20260412_193919 = {
-    "annotation_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json",
-    "data_path": "/root/ljx_home/ETPNav/data",
+    "annotation_path": "/root/autodl-tmp/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json",
+    "data_path": "/root/autodl-tmp",
     "nav_graph": True,
-    "nav_pair_dist_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
+    "nav_pair_dist_path": "/root/autodl-tmp/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
 }
 
 VLNCE_ORACLE = {
-    "annotation_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/finetuning_lables_co.json",
-    "data_path": "/root/ljx_home/ETPNav/data",
+    "annotation_path": "/root/autodl-fs/finetuning_lables_co.json",
+    "data_path": "/root/autodl-tmp",
     "nav_graph": True,
-    "nav_pair_dist_path": "/root/ljx_home/ETPNav/data/finetuning_data_gen_r2r/gmap_pair_dist.npz",
+    "nav_pair_dist_path": "/root/autodl-tmp/finetuning_data_gen_r2r/gmap_pair_dist.npz",
 }
 
 data_dict = {
