@@ -17,6 +17,7 @@
 import os
 import logging
 import pathlib
+import shutil
 import torch
 import transformers
 import sys
@@ -73,6 +74,52 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         cpu_state_dict = {key: value.cpu() for key, value in state_dict.items()}
         del state_dict
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
+
+
+def prune_checkpoints(output_dir: str, save_total_limit, best_model_checkpoint=None):
+    if save_total_limit is None or save_total_limit <= 0:
+        return
+
+    checkpoint_dirs = []
+    for path in pathlib.Path(output_dir).glob("checkpoint-*"):
+        if not path.is_dir():
+            continue
+        try:
+            step = int(path.name.split("-")[-1])
+        except ValueError:
+            continue
+        checkpoint_dirs.append((step, path))
+
+    checkpoint_dirs.sort(key=lambda item: item[0])
+    if len(checkpoint_dirs) <= save_total_limit:
+        return
+
+    best_checkpoint = str(Path(best_model_checkpoint)) if best_model_checkpoint else None
+    if (
+        best_checkpoint is not None
+        and save_total_limit == 1
+        and str(checkpoint_dirs[-1][1]) != best_checkpoint
+    ):
+        save_total_limit = 2
+
+    checkpoints_to_delete = checkpoint_dirs[: max(0, len(checkpoint_dirs) - save_total_limit)]
+    for _, checkpoint_dir in checkpoints_to_delete:
+        logging.info(
+            "Deleting older checkpoint [%s] due to save_total_limit=%s",
+            checkpoint_dir,
+            save_total_limit,
+        )
+        shutil.rmtree(checkpoint_dir, ignore_errors=True)
+
+
+class CheckpointPruningTrainer(Trainer):
+    def _save_checkpoint(self, model, trial):
+        super()._save_checkpoint(model, trial)
+        prune_checkpoints(
+            self._get_output_dir(trial=trial),
+            self.args.save_total_limit,
+            self.state.best_model_checkpoint,
+        )
 
 
 def set_model(model_args, model):
@@ -180,6 +227,13 @@ def train(attn_implementation=None):
     if nav_graph_requested and data_args.model_type != "qwen2.5vl":
         raise NotImplementedError("Navigation graph bias is currently implemented only for Qwen2.5-VL.")
 
+    if (
+        training_args.save_total_limit is not None
+        and training_args.save_total_limit > 0
+        and not training_args.load_best_model_at_end
+    ):
+        prune_checkpoints(training_args.output_dir, training_args.save_total_limit)
+
     print(f'the initlized model is {model_args.model_name_or_path} the class is {model.__class__.__name__}')
     processor = AutoProcessor.from_pretrained(
         model_args.model_name_or_path,
@@ -239,7 +293,7 @@ def train(attn_implementation=None):
             model.model.print_trainable_parameters()
     
     data_module = make_supervised_data_module(processor, data_args=data_args)
-    trainer = Trainer(
+    trainer = CheckpointPruningTrainer(
         model=model, processing_class=tokenizer, args=training_args, **data_module
     )
 
@@ -249,6 +303,11 @@ def train(attn_implementation=None):
     else:
         trainer.train()
     trainer.save_state()
+    prune_checkpoints(
+        training_args.output_dir,
+        training_args.save_total_limit,
+        trainer.state.best_model_checkpoint,
+    )
 
     model.config.use_cache = True
 
