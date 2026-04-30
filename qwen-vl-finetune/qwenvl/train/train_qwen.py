@@ -224,8 +224,8 @@ def train(attn_implementation=None):
         )
         data_args.model_type = "qwen2vl"
 
-    if nav_graph_requested and data_args.model_type != "qwen2.5vl":
-        raise NotImplementedError("Navigation graph bias is currently implemented only for Qwen2.5-VL.")
+    if nav_graph_requested and data_args.model_type not in {"qwen2.5vl", "qwen3vl"}:
+        raise NotImplementedError("Navigation graph bias is currently implemented only for Qwen2.5-VL and Qwen3-VL.")
 
     if (
         training_args.save_total_limit is not None

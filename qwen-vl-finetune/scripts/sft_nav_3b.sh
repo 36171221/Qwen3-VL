@@ -10,6 +10,7 @@ NPROC_PER_NODE=${NPROC_PER_NODE:-1}
 deepspeed=./scripts/zero3.json
 
 # Model configuration
+# Override LLM_MODEL to switch between Qwen2.5-VL-3B-Instruct and Qwen3-VL-4B-Instruct.
 llm=${LLM_MODEL:-"/root/autodl-tmp/Qwen2.5-VL-3B-Instruct"}
 
 # Training hyperparameters
@@ -23,14 +24,14 @@ entry_file=qwenvl/train/train_qwen.py
 
 # Dataset configuration
 # Default mix:
-# - llava_nav_v4: original nav supervision with candidate-view stitching
+# - llava_nav_v8: original nav supervision with candidate-view stitching
 # - tagavlm_dagger_r2r_20260412_193919: dagger-generated nav data
 # You can append other VQA/video datasets by overriding DATASETS env var.
-datasets=${DATASETS:-vlnce_oracle}
+datasets=${DATASETS:-llava_nav_v8}
 
 # Output configuration
 run_name=${RUN_NAME:-qwen2_5_vl_3b_nav_graph}
-output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen2_5_vl_3b_nav_graph_lr1e-5_bs2_acc8_epoch2_oracle_4-25}
+output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen2_5_vl_3b_nav_graph_lr1e-5_bs2_acc8_epoch2_mp3d_4-29}
 report_to=${REPORT_TO:-none}
 
 # Training arguments
@@ -49,7 +50,7 @@ args="
     --per_device_train_batch_size ${batch_size} \
     --per_device_eval_batch_size ${batch_size} \
     --gradient_accumulation_steps ${grad_accum_steps} \
-    --max_pixels 50176 \
+    --max_pixels 100352 \
     --min_pixels 784 \
     --eval_strategy no \
     --save_strategy steps \

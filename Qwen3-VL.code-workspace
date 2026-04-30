@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../autodl-tmp"
+		},
+		{
+			"path": "../autodl-fs"
 		}
 	],
 	"settings": {}

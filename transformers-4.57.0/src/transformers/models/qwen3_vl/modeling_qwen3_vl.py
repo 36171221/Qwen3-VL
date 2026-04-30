@@ -139,6 +139,58 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
+def align_graph_sprels(
+    graph_sprels: torch.Tensor,
+    batch_size: int,
+    query_length: int,
+    key_value_length: int,
+    cache_position: Optional[torch.LongTensor] = None,
+) -> torch.Tensor:
+    if graph_sprels.ndim == 2:
+        graph_sprels = graph_sprels.unsqueeze(0)
+    if graph_sprels.ndim != 3:
+        raise ValueError(f"graph_sprels must be 2D or 3D, got {graph_sprels.ndim}D")
+
+    if graph_sprels.shape[0] == 1 and batch_size > 1:
+        graph_sprels = graph_sprels.expand(batch_size, -1, -1)
+    elif graph_sprels.shape[0] != batch_size:
+        raise ValueError(
+            f"graph_sprels batch size should match hidden states, got {graph_sprels.shape[0]} and {batch_size}"
+        )
+
+    if cache_position is not None:
+        cache_position = cache_position.to(device=graph_sprels.device, dtype=torch.long)
+        if cache_position.ndim == 0:
+            cache_position = cache_position.unsqueeze(0)
+        if graph_sprels.shape[-2] > cache_position.max().item():
+            graph_sprels = graph_sprels.index_select(-2, cache_position)
+            graph_sprels = graph_sprels[..., :key_value_length]
+
+    if graph_sprels.shape[-2] != query_length or graph_sprels.shape[-1] != key_value_length:
+        aligned = torch.zeros(
+            (batch_size, query_length, key_value_length),
+            dtype=graph_sprels.dtype,
+            device=graph_sprels.device,
+        )
+        copy_q = min(query_length, graph_sprels.shape[-2])
+        copy_k = min(key_value_length, graph_sprels.shape[-1])
+        aligned[:, :copy_q, :copy_k] = graph_sprels[:, :copy_q, :copy_k]
+        graph_sprels = aligned
+
+    return graph_sprels
+
+
+def bool_mask_to_additive(mask: Optional[torch.Tensor], target_dtype: torch.dtype) -> Optional[torch.Tensor]:
+    if mask is None:
+        return None
+    if mask.dtype == torch.bool:
+        min_value = torch.finfo(target_dtype).min
+        mask = torch.where(mask, torch.tensor(0.0, device=mask.device, dtype=target_dtype), min_value)
+    else:
+        mask = mask.to(dtype=target_dtype)
+    return mask
+
+
 def eager_attention_forward(
     module: nn.Module,
     query: torch.Tensor,
@@ -389,6 +441,7 @@ class Qwen3VLTextAttention(nn.Module):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
+        self.num_heads = config.num_attention_heads
         self.head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
         self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads
         self.scaling = self.head_dim**-0.5
@@ -411,6 +464,9 @@ class Qwen3VLTextAttention(nn.Module):
         self.k_norm = Qwen3VLTextRMSNorm(
             self.head_dim, eps=config.rms_norm_eps
         )  # thus post q_norm does not need reshape
+        self.sprel_linear = (
+            nn.Linear(1, self.num_heads, bias=False) if getattr(config, "graph_sprels", False) else None
+        )
 
     @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
@@ -418,6 +474,7 @@ class Qwen3VLTextAttention(nn.Module):
         hidden_states: torch.Tensor,
         position_embeddings: tuple[torch.Tensor, torch.Tensor],
         attention_mask: Optional[torch.Tensor],
+        graph_sprels: Optional[torch.Tensor] = None,
         past_key_values: Optional[Cache] = None,
         cache_position: Optional[torch.LongTensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
@@ -437,6 +494,27 @@ class Qwen3VLTextAttention(nn.Module):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
+        combined_attention_mask = attention_mask
+        if graph_sprels is not None and self.sprel_linear is not None:
+            graph_sprels = align_graph_sprels(
+                graph_sprels.to(device=query_states.device),
+                batch_size=query_states.shape[0],
+                query_length=query_states.shape[-2],
+                key_value_length=key_states.shape[-2],
+                cache_position=cache_position,
+            )
+            graph_sprels = graph_sprels.unsqueeze(-1).to(dtype=self.sprel_linear.weight.dtype)
+            graph_bias = self.sprel_linear(graph_sprels).permute(0, 3, 1, 2).to(dtype=query_states.dtype)
+
+            combined_attention_mask = bool_mask_to_additive(combined_attention_mask, query_states.dtype)
+            if combined_attention_mask is not None and combined_attention_mask.ndim == 4:
+                combined_attention_mask = combined_attention_mask[:, :, :, : key_states.shape[-2]]
+                if combined_attention_mask.shape[1] == 1:
+                    combined_attention_mask = combined_attention_mask.expand(-1, self.num_heads, -1, -1)
+            combined_attention_mask = (
+                graph_bias if combined_attention_mask is None else combined_attention_mask + graph_bias
+            )
+
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
@@ -446,7 +524,7 @@ class Qwen3VLTextAttention(nn.Module):
             query_states,
             key_states,
             value_states,
-            attention_mask,
+            combined_attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
             **kwargs,
@@ -494,6 +572,7 @@ class Qwen3VLTextDecoderLayer(GradientCheckpointingLayer):
         past_key_values: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
         cache_position: Optional[torch.LongTensor] = None,
+        graph_sprels: Optional[torch.Tensor] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> torch.Tensor:
         residual = hidden_states
@@ -507,6 +586,7 @@ class Qwen3VLTextDecoderLayer(GradientCheckpointingLayer):
             use_cache=use_cache,
             cache_position=cache_position,
             position_embeddings=position_embeddings,
+            graph_sprels=graph_sprels,
             **kwargs,
         )
         hidden_states = residual + hidden_states
@@ -793,6 +873,7 @@ class Qwen3VLTextModel(Qwen3VLPreTrainedModel):
         # args for deepstack
         visual_pos_masks: Optional[torch.Tensor] = None,
         deepstack_visual_embeds: Optional[list[torch.Tensor]] = None,
+        graph_sprels: Optional[torch.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[tuple, BaseModelOutputWithPast]:
         r"""
@@ -854,6 +935,7 @@ class Qwen3VLTextModel(Qwen3VLPreTrainedModel):
                 past_key_values=past_key_values,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
+                graph_sprels=graph_sprels,
                 **kwargs,
             )
             hidden_states = layer_outputs
@@ -1117,6 +1199,7 @@ class Qwen3VLModel(Qwen3VLPreTrainedModel):
         image_grid_thw: Optional[torch.LongTensor] = None,
         video_grid_thw: Optional[torch.LongTensor] = None,
         cache_position: Optional[torch.LongTensor] = None,
+        graph_sprels: Optional[torch.Tensor] = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> Union[tuple, Qwen3VLModelOutputWithPast]:
         r"""
@@ -1227,6 +1310,7 @@ class Qwen3VLModel(Qwen3VLPreTrainedModel):
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
             cache_position=cache_position,
+            graph_sprels=graph_sprels,
             visual_pos_masks=visual_pos_masks,
             deepstack_visual_embeds=deepstack_visual_embeds,
             **kwargs,
@@ -1325,6 +1409,7 @@ class Qwen3VLForConditionalGeneration(Qwen3VLPreTrainedModel, GenerationMixin):
         image_grid_thw: Optional[torch.LongTensor] = None,
         video_grid_thw: Optional[torch.LongTensor] = None,
         cache_position: Optional[torch.LongTensor] = None,
+        graph_sprels: Optional[torch.Tensor] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> Union[tuple, Qwen3VLCausalLMOutputWithPast]:
@@ -1352,6 +1437,7 @@ class Qwen3VLForConditionalGeneration(Qwen3VLPreTrainedModel, GenerationMixin):
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
             cache_position=cache_position,
+            graph_sprels=graph_sprels,
             **kwargs,
         )
 
@@ -1385,6 +1471,7 @@ class Qwen3VLForConditionalGeneration(Qwen3VLPreTrainedModel, GenerationMixin):
         pixel_values_videos=None,
         image_grid_thw=None,
         video_grid_thw=None,
+        graph_sprels=None,
         **kwargs,
     ):
         # Overwritten -- in specific circumstances we don't want to forward image inputs to the model
@@ -1401,6 +1488,7 @@ class Qwen3VLForConditionalGeneration(Qwen3VLPreTrainedModel, GenerationMixin):
             image_grid_thw=image_grid_thw,
             video_grid_thw=video_grid_thw,
             use_cache=use_cache,
+            graph_sprels=graph_sprels,
             **kwargs,
         )
 
@@ -1410,6 +1498,9 @@ class Qwen3VLForConditionalGeneration(Qwen3VLPreTrainedModel, GenerationMixin):
         if cache_position[0] != 0:
             model_inputs["pixel_values"] = None
             model_inputs["pixel_values_videos"] = None
+
+        if graph_sprels is not None:
+            model_inputs["graph_sprels"] = graph_sprels
 
         return model_inputs
 

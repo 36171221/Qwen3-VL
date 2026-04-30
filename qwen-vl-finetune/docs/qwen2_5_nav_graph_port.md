@@ -1,8 +1,9 @@
-# Qwen2.5-VL Navigation Graph Port
+# Qwen2.5-VL / Qwen3-VL Navigation Graph Port
 
 ## Scope
 
-This port brings the ETPNav / TagaVLM navigation-graph training path onto the local `qwen-vl-finetune` pipeline for `Qwen2.5-VL`.
+This port brings the ETPNav / TagaVLM navigation-graph training path onto the local `qwen-vl-finetune` pipeline for `Qwen2.5-VL` and `Qwen3-VL`.
+Qwen2.5 remains the reference path; Qwen3 reuses the same data, batch structure, and launch script.
 
 Implemented goals:
 
@@ -10,7 +11,7 @@ Implemented goals:
 - Resolve navigation candidate-view ids into stitched images using `cand_viewids_list.json`.
 - Load node-level pair-distance matrices from `.npz`.
 - Expand node-level distances into token-level `graph_sprels`.
-- Add a per-layer learnable `sprel_linear` in the Qwen2.5-VL text decoder.
+- Add a per-layer learnable `sprel_linear` in the Qwen2.5-VL / Qwen3-VL text decoder.
 - Merge graph bias into the decoder attention mask.
 - Force navigation-graph training onto `sdpa` and disable packing / flatten mode.
 
@@ -22,7 +23,7 @@ Not enabled by default:
 
 - `qwen-vl-finetune/qwenvl/data/__init__.py`
   - Added named dataset presets:
-    - `llava_nav_v4`
+    - `llava_nav_v8`
     - `tagavlm_dagger_r2r_20260412_193919`
   - Added support for passing a direct local JSON path in `dataset_use`.
 
@@ -50,8 +51,8 @@ Not enabled by default:
     - `attn_implementation=sdpa`
     - `data_flatten=False`
     - `data_packing=False`
-  - Enables `config.graph_sprels` for Qwen2.5-VL.
-  - Guards against using this path on non-Qwen2.5-VL models.
+  - Enables `config.graph_sprels` for Qwen2.5-VL / Qwen3-VL.
+  - Keeps other model families blocked.
 
 - `transformers-4.57.0/src/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py`
   - Added `sprel_linear` to `Qwen2_5_VLAttention`.
@@ -63,6 +64,16 @@ Not enabled by default:
     - `Qwen2_5_VLAttention.forward`
     - `prepare_inputs_for_generation`
   - Graph bias is added on top of the causal / padding attention mask.
+
+- `transformers-4.57.0/src/transformers/models/qwen3_vl/modeling_qwen3_vl.py`
+  - Mirrors the Qwen2.5 nav-graph path for Qwen3 text attention / model forward.
+
+- `transformers-4.57.0/src/transformers/models/qwen3_vl_moe/modeling_qwen3_vl_moe.py`
+  - Mirrors the same nav-graph path for Qwen3 MoE variants.
+
+- `qwen-vl-finetune/scripts/sft_nav_3b.sh`
+  - Same entry script for Qwen2.5 and Qwen3.
+  - Switch models by overriding `LLM_MODEL`.
 
 ## Backups
 
@@ -78,14 +89,14 @@ Backups were created before editing:
 
 Current presets assume these paths:
 
-- LLaVA-Nav v4 annotations:
-  - `/home/ljx/LLaVA-NeXT-graph/data/v4/llava_nav_instruct_train_large_v4.json`
-- LLaVA-Nav v4 candidate-view metadata:
-  - `/home/ljx/LLaVA-NeXT-graph/data/v4/cand_viewids_list.json`
+- LLaVA-Nav v8 annotations:
+  - `/root/autodl-fs/v8/llava_nav_instruct_train.json`
+- LLaVA-Nav v8 candidate-view metadata:
+  - `/root/autodl-fs/v8/cand_viewids_list_train.json`
 - Matterport candidate-view hdf5:
-  - `/home/ljx/LLaVA-NeXT-graph/data/view_images_bgr_from_mattersim.h5`
+  - `/root/autodl-fs/view_images_bgr_from_mattersim.h5`
 - Matterport skybox root:
-  - `/home/ljx/unzip_202510181824_mp3d_data/mp3d_data`
+  - `/root/autodl-tmp/mp3d_data_cropped`
 - DAgger R2R annotations:
   - `/home/data/ljx/tagavlm_dager_data/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json`
 - DAgger R2R pair-distance npz:
@@ -126,17 +137,8 @@ Recommended launch pattern:
 
 ```bash
 cd qwen-vl-finetune
-python qwenvl/train/train_qwen.py \
-  --model_name_or_path Qwen/Qwen2.5-VL-3B-Instruct \
-  --dataset_use llava_nav_v4,tagavlm_dagger_r2r_20260412_193919,videochatgpt \
-  --use_nav_graph True \
-  --attn_implementation sdpa \
-  --tune_mm_vision False \
-  --tune_mm_mlp True \
-  --tune_mm_llm True \
-  --bf16 \
-  --model_max_length 8192 \
-  --per_device_train_batch_size 2
+LLM_MODEL=/root/autodl-tmp/Qwen2.5-VL-3B-Instruct bash scripts/sft_nav_3b.sh
+LLM_MODEL=/root/autodl-tmp/Qwen3-VL-4B-Instruct RUN_NAME=qwen3vl_4b_nav_graph bash scripts/sft_nav_3b.sh
 ```
 
 Even if `--attn_implementation` is omitted, nav mode will force `sdpa`.
@@ -157,7 +159,7 @@ The current shell Python here does not have all training dependencies installed,
 
 ## Known Limits
 
-- Navigation graph bias is implemented only for `Qwen2.5-VL`.
+- Navigation graph bias is implemented for `Qwen2.5-VL` and `Qwen3-VL`.
 - `use_geo_token` is intentionally left inactive and should remain off unless separately validated.
 - Navigation graph mode currently disables `data_flatten` / `data_packing`.
 - The implementation assumes one graph-distance matrix per sample id in the configured `.npz`.

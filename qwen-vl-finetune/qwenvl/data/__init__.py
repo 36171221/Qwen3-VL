@@ -27,13 +27,13 @@ VIDEOCHATGPT = {
     "data_path": "PATH_TO_VIDEOCHATGPT_DATA",
 }
 
-LLAVA_NAV_V4 = {
-    "annotation_path": "/home/ljx/LLaVA-NeXT-graph/data/v4/llava_nav_instruct_train_large_v4.json",
-    "data_path": "/home/ljx/unzip_202510181824_mp3d_data/mp3d_data",
+LLAVA_NAV_V8 = {
+    "annotation_path": "/root/autodl-fs/v8/llava_nav_instruct_train.json",
+    "data_path": "/root/autodl-tmp/mp3d_data_cropped",
     "nav_graph": True,
-    "nav_pair_dist_path": "/home/ljx/LLaVA-NeXT-graph/data/v4/gmap_pair_dist_train_v4.npz",
-    "cand_viewids_path": "/home/ljx/LLaVA-NeXT-graph/data/v4/cand_viewids_list.json",
-    "nav_view_hdf5_path": "/home/ljx/LLaVA-NeXT-graph/data/view_images_bgr_from_mattersim.h5",
+    "nav_pair_dist_path": "/root/autodl-fs/v8/gmap_pair_dist_train.npz",
+    "cand_viewids_path": "/root/autodl-fs/v8/cand_viewids_list_train.json",
+    "nav_view_hdf5_path": "/root/autodl-fs/view_images_bgr_from_mattersim.h5",
 }
 
 TAGAVLM_DAGGER_R2R_20260412_193919 = {
@@ -56,7 +56,7 @@ data_dict = {
     "mp_doc": MP_DOC,
     "clevr_mc": CLEVR_MC,
     "videochatgpt": VIDEOCHATGPT,
-    "llava_nav_v4": LLAVA_NAV_V4,
+    "llava_nav_v8": LLAVA_NAV_V8,
     "tagavlm_dagger_r2r_20260412_193919": TAGAVLM_DAGGER_R2R_20260412_193919,
     'vlnce_oracle': VLNCE_ORACLE,
 }
