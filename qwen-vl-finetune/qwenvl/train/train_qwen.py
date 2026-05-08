@@ -160,12 +160,30 @@ def train(attn_implementation=None):
         training_args.report_to = "none"
 
     local_rank = training_args.local_rank
+    if local_rank is None or local_rank < 0:
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    training_args.local_rank = local_rank
+    if torch.cuda.is_available():
+        torch.cuda.set_device(local_rank)
     os.makedirs(training_args.output_dir, exist_ok=True)
+
+    debug_train = os.environ.get("DEBUG_TRAIN") == "1"
+    if debug_train:
+        print(
+            "[Debug] dataset_use=",
+            data_args.dataset_use,
+            "use_nav_graph=",
+            data_args.use_nav_graph,
+            "local_rank=",
+            local_rank,
+        )
 
     nav_graph_requested = bool(
         data_args.use_nav_graph
         or any(flag in data_args.dataset_use.lower() for flag in ("nav", "dagger"))
     )
+    if debug_train:
+        print("[Debug] nav_graph_requested=", nav_graph_requested)
     if nav_graph_requested:
         data_args.data_flatten = False
         data_args.data_packing = False
@@ -182,6 +200,13 @@ def train(attn_implementation=None):
         model_config.graph_sprels = True
         if hasattr(model_config, "text_config") and model_config.text_config is not None:
             model_config.text_config.graph_sprels = True
+    if debug_train:
+        print(
+            "[Debug] model_config.graph_sprels=",
+            getattr(model_config, "graph_sprels", None),
+            "text_config.graph_sprels=",
+            getattr(getattr(model_config, "text_config", None), "graph_sprels", None),
+        )
     model_config_kwargs = {"config": model_config} if model_config is not None else {}
 
     model_type = getattr(model_config, "model_type", "").lower()
