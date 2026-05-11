@@ -40,7 +40,7 @@ datasets=${DATASETS:-llava_nav_v8}
 
 # Output configuration
 run_name=${RUN_NAME:-qwen2_5_vl_3b_nav_graph}
-output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen3_vl_4b_nav_graph_ddp_test}
+output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen25_vl_3b_nav_graph_ddp_test}
 report_to=${REPORT_TO:-none}
 
 args=(

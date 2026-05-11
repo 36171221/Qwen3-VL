@@ -28,12 +28,12 @@ VIDEOCHATGPT = {
 }
 
 LLAVA_NAV_V8 = {
-    "annotation_path": "/root/autodl-fs/v8/llava_nav_instruct_train.json",
-    "data_path": "/root/autodl-tmp/mp3d_data_cropped",
+    "annotation_path": "/root/autodl-tmp/co-training-data/v8/llava_nav_instruct_train_co.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
     "nav_graph": True,
-    "nav_pair_dist_path": "/root/autodl-fs/v8/gmap_pair_dist_train.npz",
-    "cand_viewids_path": "/root/autodl-fs/v8/cand_viewids_list_train.json",
-    "nav_view_hdf5_path": "/root/autodl-fs/view_images_bgr_from_mattersim.h5",
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v8/gmap_pair_dist_train.npz",
+    "cand_viewids_path": "/root/autodl-tmp/co-training-data/v8/cand_viewids_list_train.json",
+    "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
 }
 
 TAGAVLM_DAGGER_R2R_20260412_193919 = {

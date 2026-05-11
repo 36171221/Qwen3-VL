@@ -102,6 +102,9 @@ def resolve_nav_image(
         raise KeyError(f"Candidate view id {cand_view_id!r} not found for sample {sample_id!r}")
 
     frames = []
+    if nav_view_hdf5_path and Path(nav_view_hdf5_path).is_dir():
+        nav_view_root = nav_view_root or nav_view_hdf5_path
+        nav_view_hdf5_path = None
     hdf5_file = load_hdf5_cached(nav_view_hdf5_path) if nav_view_hdf5_path else None
     for source in cand_sources:
         [(viewpoint_id, view_idx)] = source.items()
@@ -120,9 +123,7 @@ def resolve_nav_image(
     if len(frames) == 1:
         return Image.fromarray(frames[0]).convert("RGB")
 
-    import cv2
-
-    stitched = cv2.hconcat(frames)
+    stitched = np.concatenate(frames, axis=1)
     return Image.fromarray(stitched).convert("RGB")
 
 
