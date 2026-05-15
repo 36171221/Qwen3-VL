@@ -874,13 +874,33 @@ class BaseVideoProcessor(BaseImageProcessorFast):
         If a single url is passed, the return value will be a single object. If a list is passed a list of objects is
         returned.
         """
-        backend = "torchcodec"
-        if not is_torchcodec_available():
-            warnings.warn(
-                "`torchcodec` is not installed and cannot be used to decode the video by default. "
-                "Falling back to `torchvision`. Note that `torchvision` decoding is deprecated and will be removed in future versions. "
+        forced_backend = os.environ.get("FORCE_QWENVL_VIDEO_READER")
+        backend = None
+        if forced_backend:
+            backend = forced_backend
+        if backend is None:
+            preferred_backends = ("decord", "pyav", "torchvision", "torchcodec")
+            for candidate in preferred_backends:
+                try:
+                    if candidate == "decord" and is_decord_available():
+                        backend = candidate
+                        break
+                    if candidate == "pyav" and is_av_available():
+                        backend = candidate
+                        break
+                    if candidate == "torchvision" and is_torchvision_available():
+                        backend = candidate
+                        break
+                    if candidate == "torchcodec" and is_torchcodec_available():
+                        backend = candidate
+                        break
+                except Exception:
+                    continue
+
+        if backend is None:
+            raise ImportError(
+                "No usable video decoding backend is available. Install one of decord, pyav, torchvision, or torchcodec."
             )
-            backend = "torchvision"
 
         if isinstance(video_url_or_urls, list):
             return list(zip(*[self.fetch_videos(x, sample_indices_fn=sample_indices_fn) for x in video_url_or_urls]))

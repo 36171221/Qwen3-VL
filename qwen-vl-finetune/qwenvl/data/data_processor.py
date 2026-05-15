@@ -86,6 +86,16 @@ def _make_abs_paths(base: Path, files: str) -> str:
     return f"{(base / files).resolve()}"
 
 
+def _remap_media_path(path: str, item: Dict[str, Any]) -> str:
+    replacements = item.get("path_prefix_replacements") or {}
+    if not isinstance(path, str):
+        return path
+    for old_prefix, new_prefix in replacements.items():
+        if path.startswith(old_prefix):
+            return f"{new_prefix}{path[len(old_prefix):]}"
+    return path
+
+
 def update_processor_pixels(processor, data_args):
     logger = logging.getLogger(__name__)
 
@@ -187,10 +197,12 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
     images = item.get("image") or []
     if isinstance(images, str):
         images = [images]
+    images = [_remap_media_path(img, item) for img in images]
 
     videos = item.get("video") or []
     if isinstance(videos, str):
         videos = [videos]
+    videos = [_remap_media_path(vid, item) for vid in videos]
 
     # Build media pools with absolute paths
     image_pool = [{"type": "image", "image": img} for img in images]
@@ -210,6 +222,9 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
 
         if role == "user":
             content = []
+            # Some video annotations still use <image> as the placeholder for video.
+            if video_pool and not image_pool and "<video>" not in text and "<image>" in text:
+                text = text.replace("<image>", "<video>")
             # Split text by <image> or <video> placeholders while keeping delimiters
             text_parts = re.split(r"(<image>|<video>)", text)
 
@@ -266,6 +281,7 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
 def preprocess_qwen_visual(
     sources,
     processor,
+    data_args=None,
 ) -> Dict:
     if len(sources) != 1:
         raise ValueError(f"Expected 1 source, got {len(sources)}")
@@ -274,9 +290,24 @@ def preprocess_qwen_visual(
     base_path = Path(source.get("data_path", ""))
     messages = _build_messages(source, base_path)
 
-    full_result = processor.apply_chat_template(
-        messages, tokenize=True, return_dict=True, return_tensors="pt"
-    )
+    apply_kwargs = {
+        "tokenize": True,
+        "return_dict": True,
+        "return_tensors": "pt",
+    }
+    if data_args is not None and any(
+        isinstance(content, dict) and content.get("type") == "video"
+        for message in messages
+        for content in message.get("content", [])
+    ):
+        apply_kwargs.update(
+            {
+                "do_sample_frames": True,
+                "fps": float(data_args.video_fps),
+            }
+        )
+
+    full_result = processor.apply_chat_template(messages, **apply_kwargs)
 
     input_ids = full_result["input_ids"]
     if isinstance(input_ids, list):
@@ -356,6 +387,7 @@ class LazySupervisedDataset(Dataset):
                             "cand_viewids_path",
                             "nav_view_hdf5_path",
                             "nav_view_root",
+                            "path_prefix_replacements",
                         ):
                             if key in data:
                                 sub_ann[key] = data[key]
@@ -367,6 +399,7 @@ class LazySupervisedDataset(Dataset):
                         "cand_viewids_path",
                         "nav_view_hdf5_path",
                         "nav_view_root",
+                        "path_prefix_replacements",
                     ):
                         if key in data:
                             ann[key] = data[key]
@@ -472,6 +505,7 @@ class LazySupervisedDataset(Dataset):
         data_dict = preprocess_qwen_visual(
             sources,
             self.processor,
+            self.data_args,
         )
 
         seq_len = data_dict["input_ids"][0].size(0)
