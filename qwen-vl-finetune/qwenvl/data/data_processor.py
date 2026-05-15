@@ -29,6 +29,7 @@ IMAGE_TOKEN_INDEX = 151655
 VIDEO_TOKEN_INDEX = 151656
 DEFAULT_IMAGE_TOKEN = "<image>"
 DEFAULT_VIDEO_TOKEN = "<video>"
+DEFAULT_GEO_TOKEN = "<geo>"
 
 SYSTEM_PROMPT = """# Role
 You are an autonomous robot programmed for navigation and visual understanding tasks.
@@ -225,11 +226,16 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
             # Some video annotations still use <image> as the placeholder for video.
             if video_pool and not image_pool and "<video>" not in text and "<image>" in text:
                 text = text.replace("<image>", "<video>")
+            if item.get("use_geo_token") and "<geo>" not in text and "<image>" in text:
+                text = text.replace("<image>", "<geo><image>")
+
             # Split text by <image> or <video> placeholders while keeping delimiters
-            text_parts = re.split(r"(<image>|<video>)", text)
+            text_parts = re.split(r"(<geo>|<image>|<video>)", text)
 
             for seg in text_parts:
-                if seg == "<image>":
+                if seg == "<geo>":
+                    content.append({"type": "text", "text": DEFAULT_GEO_TOKEN})
+                elif seg == "<image>":
                     if not image_pool:
                         raise ValueError(
                             "Number of <image> placeholders exceeds the number of provided images"
@@ -384,10 +390,12 @@ class LazySupervisedDataset(Dataset):
                         for key in (
                             "nav_graph",
                             "nav_pair_dist_path",
+                            "nav_pos_fts_path",
                             "cand_viewids_path",
                             "nav_view_hdf5_path",
                             "nav_view_root",
                             "path_prefix_replacements",
+                            "use_geo_token",
                         ):
                             if key in data:
                                 sub_ann[key] = data[key]
@@ -396,10 +404,12 @@ class LazySupervisedDataset(Dataset):
                     for key in (
                         "nav_graph",
                         "nav_pair_dist_path",
+                        "nav_pos_fts_path",
                         "cand_viewids_path",
                         "nav_view_hdf5_path",
                         "nav_view_root",
                         "path_prefix_replacements",
+                        "use_geo_token",
                     ):
                         if key in data:
                             ann[key] = data[key]
@@ -564,6 +574,15 @@ class LazySupervisedDataset(Dataset):
         else:
             nav_pair_dists = None
 
+        nav_pos_fts_path = source.get("nav_pos_fts_path")
+        if nav_pos_fts_path and source.get("id") is not None:
+            try:
+                nav_pos_fts = load_npz_cached(nav_pos_fts_path)[str(source["id"])]
+            except KeyError:
+                nav_pos_fts = None
+        else:
+            nav_pos_fts = None
+
         token_node_ids = build_token_node_ids(
             data_dict["input_ids"][0].tolist(),
             IMAGE_TOKEN_INDEX,
@@ -576,6 +595,8 @@ class LazySupervisedDataset(Dataset):
             dtype=torch.float32,
         )
         data_dict["graph_sprels"] = graph_sprels
+        data_dict["nav_pos_fts"] = nav_pos_fts
+        data_dict["use_geo_token"] = bool(source.get("use_geo_token"))
 
         return data_dict
 
@@ -610,6 +631,9 @@ class LazySupervisedDataset(Dataset):
                 "position_ids": position_ids,
                 "attention_mask": attention_mask if attention_mask else None,
             }
+            if any(d.get("nav_pos_fts") is not None for d in data_list):
+                new_data_dict["nav_pos_fts"] = [d.get("nav_pos_fts") for d in data_list]
+                new_data_dict["use_geo_token"] = any(bool(d.get("use_geo_token")) for d in data_list)
 
             if any("pixel_values" in d for d in data_list):
                 new_data_dict.update(
@@ -777,6 +801,10 @@ class DataCollatorForSupervisedDataset(object):
                 padding_side=self.tokenizer.padding_side,
                 padding_value=0.0,
             )
+        if any(instance.get("nav_pos_fts") is not None for instance in instances):
+            batch["nav_pos_fts"] = [instance.get("nav_pos_fts") for instance in instances]
+        if any(bool(instance.get("use_geo_token")) for instance in instances):
+            batch["use_geo_token"] = True
         return batch
 
 

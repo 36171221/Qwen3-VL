@@ -18,6 +18,7 @@ import os
 import logging
 import pathlib
 import shutil
+import json
 import torch
 import transformers
 import sys
@@ -44,6 +45,7 @@ from transformers import AutoProcessor, Trainer
 
 NAV_SPECIAL_TOKENS = [
     "<graph>",
+    "<geo>",
     "<node>",
     "</node>",
     "<stop>",
@@ -59,6 +61,43 @@ local_rank = None
 def rank0_print(*args):
     if local_rank == 0:
         print(*args)
+
+
+def _dataset_declares_geo_token(dataset_use: str) -> bool:
+    from qwenvl.data import data_list
+
+    dataset_names = [name.strip() for name in dataset_use.split(",") if name.strip()]
+    for data in data_list(dataset_names):
+        if data.get("use_geo_token"):
+            return True
+        annotation_path = data.get("annotation_path")
+        if not annotation_path or not pathlib.Path(annotation_path).exists():
+            continue
+        try:
+            if annotation_path.endswith(".jsonl"):
+                with open(annotation_path, "r", encoding="utf-8") as f:
+                    first_line = next((line for line in f if line.strip()), None)
+                if first_line is None:
+                    continue
+                annotation = json.loads(first_line)
+                if isinstance(annotation, list):
+                    annotation = annotation[0] if annotation else {}
+            else:
+                with open(annotation_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, list) and loaded:
+                    annotation = loaded[0]
+                    if isinstance(annotation, list):
+                        annotation = annotation[0] if annotation else {}
+                elif isinstance(loaded, dict):
+                    annotation = next(iter(loaded.values())) if loaded else {}
+                else:
+                    annotation = {}
+            if isinstance(annotation, dict) and annotation.get("use_geo_token"):
+                return True
+        except Exception:
+            continue
+    return False
 
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
@@ -191,6 +230,14 @@ def train(attn_implementation=None):
         training_args.attn_implementation = "sdpa"
         print("[Info] Navigation graph mode enabled; forcing sdpa attention and disabling flatten/packing.")
 
+    dataset_geo_token = _dataset_declares_geo_token(data_args.dataset_use)
+    if data_args.use_geo_token is None:
+        data_args.use_geo_token = dataset_geo_token
+    else:
+        data_args.use_geo_token = bool(data_args.use_geo_token)
+    if debug_train:
+        print("[Debug] dataset_geo_token=", dataset_geo_token, "resolved_use_geo_token=", data_args.use_geo_token)
+
     attn_implementation = attn_implementation or training_args.attn_implementation
     if nav_graph_requested:
         attn_implementation = "sdpa"
@@ -198,14 +245,22 @@ def train(attn_implementation=None):
     model_config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
     if nav_graph_requested:
         model_config.graph_sprels = True
+        model_config.use_geo_token = bool(data_args.use_geo_token)
+        model_config.nav_geo_dim = int(data_args.nav_geo_dim)
         if hasattr(model_config, "text_config") and model_config.text_config is not None:
             model_config.text_config.graph_sprels = True
+            model_config.text_config.use_geo_token = bool(data_args.use_geo_token)
+            model_config.text_config.nav_geo_dim = int(data_args.nav_geo_dim)
     if debug_train:
         print(
             "[Debug] model_config.graph_sprels=",
             getattr(model_config, "graph_sprels", None),
             "text_config.graph_sprels=",
             getattr(getattr(model_config, "text_config", None), "graph_sprels", None),
+            "use_geo_token=",
+            getattr(model_config, "use_geo_token", None),
+            "nav_geo_dim=",
+            getattr(model_config, "nav_geo_dim", None),
         )
     model_config_kwargs = {"config": model_config} if model_config is not None else {}
 
@@ -293,6 +348,11 @@ def train(attn_implementation=None):
     if added_tokens > 0:
         print(f"[Info] Added {added_tokens} special tokens to tokenizer.")
     model.resize_token_embeddings(len(tokenizer))
+    geo_token_id = tokenizer.convert_tokens_to_ids("<geo>")
+    if geo_token_id is not None and geo_token_id >= 0:
+        model.config.geo_token_id = int(geo_token_id)
+        if hasattr(model.config, "text_config") and model.config.text_config is not None:
+            model.config.text_config.geo_token_id = int(geo_token_id)
 
     if training_args.lora_enable:
         from peft import LoraConfig, get_peft_model, TaskType
