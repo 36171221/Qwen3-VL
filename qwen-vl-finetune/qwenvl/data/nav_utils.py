@@ -68,13 +68,23 @@ def _open_direct_image(image_spec: Any, base_path: Path) -> Optional[Image.Image
     return None
 
 
+def _normalize_root_list(
+    root_or_roots: Optional[str | Sequence[str]],
+) -> list[Path]:
+    if root_or_roots is None:
+        return []
+    if isinstance(root_or_roots, (str, Path)):
+        return [Path(root_or_roots)]
+    return [Path(root) for root in root_or_roots]
+
+
 def resolve_nav_image(
     image_spec: Any,
     base_path: Path,
     sample_id: Optional[str] = None,
     cand_viewids_path: Optional[str] = None,
     nav_view_hdf5_path: Optional[str] = None,
-    nav_view_root: Optional[str] = None,
+    nav_view_root: Optional[str | Sequence[str]] = None,
 ) -> Image.Image:
     direct_image = _open_direct_image(image_spec, base_path)
     if direct_image is not None:
@@ -102,8 +112,9 @@ def resolve_nav_image(
         raise KeyError(f"Candidate view id {cand_view_id!r} not found for sample {sample_id!r}")
 
     frames = []
+    nav_view_roots = _normalize_root_list(nav_view_root)
     if nav_view_hdf5_path and Path(nav_view_hdf5_path).is_dir():
-        nav_view_root = nav_view_root or nav_view_hdf5_path
+        nav_view_roots = nav_view_roots or [Path(nav_view_hdf5_path)]
         nav_view_hdf5_path = None
     hdf5_file = load_hdf5_cached(nav_view_hdf5_path) if nav_view_hdf5_path else None
     for source in cand_sources:
@@ -113,11 +124,23 @@ def resolve_nav_image(
             frames.append(np.asarray(frame))
             continue
 
-        if nav_view_root is None:
+        if not nav_view_roots:
             raise ValueError(
                 "nav_view_root is required when nav_view_hdf5_path is not provided."
             )
-        frame_path = Path(nav_view_root) / scan / viewpoint_id / f"{view_idx}.jpg"
+
+        frame_path = None
+        for root in nav_view_roots:
+            candidate = root / scan / viewpoint_id / f"{view_idx}.jpg"
+            if candidate.exists():
+                frame_path = candidate
+                break
+        if frame_path is None:
+            raise FileNotFoundError(
+                f"Could not resolve candidate frame for scan={scan}, "
+                f"viewpoint={viewpoint_id}, view_idx={view_idx} under roots "
+                f"{[str(root) for root in nav_view_roots]}"
+            )
         frames.append(np.asarray(Image.open(frame_path).convert("RGB")))
 
     if len(frames) == 1:
