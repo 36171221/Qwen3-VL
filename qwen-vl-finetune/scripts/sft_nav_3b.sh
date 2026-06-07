@@ -40,11 +40,11 @@ entry_file=qwenvl/train/train_qwen.py
 # - Video QA: ActivityNetQA and NextQA slices already extracted under /root/autodl-tmp/co-training-data
 # - Instruction generation: R2R/RVR/RxR/SOON path summarization data
 # Override DATASETS to change sampling or composition, e.g. "llava_nav_v8%50,m4_instruct_alfred_subset".
-datasets=${DATASETS:-llava_nav_v8,llava_nav_v4_150k,finetuning_data_gen,finetuning_data_gen_rxr_compressed,mp3d_anno_rvr,mp3d_anno_rxr,mp3d_anno_soon,m4_instruct_alfred_subset,m4_instruct_clevr_change_subset,m4_instruct_multi_vqa_subset,m4_instruct_nlvr2_subset,m4_instruct_scannet_subset,m4_instruct_spot_the_diff_subset,video_0_30_s_activitynetqa_oe,video_0_30_s_nextqa_oe,video_0_30_s_nextqa_mc,video_1_2_m_activitynetqa_oe,video_1_2_m_nextqa_oe,video_1_2_m_nextqa_mc,video_2_3_m_activitynetqa_oe,video_30_60_s_activitynetqa_oe,video_30_60_s_nextqa_oe,video_30_60_s_nextqa_mc,instruction_gen_r2r,instruction_gen_rvr,instruction_gen_rxr,instruction_gen_soon}
-# datasets=${DATASETS:-finetuning_data_gen}
+# datasets=${DATASETS:-llava_nav_v8,llava_nav_v4_150k,finetuning_data_gen,finetuning_data_gen_rxr_compressed,mp3d_anno_rvr,mp3d_anno_rxr,mp3d_anno_soon,m4_instruct_alfred_subset,m4_instruct_clevr_change_subset,m4_instruct_multi_vqa_subset,m4_instruct_nlvr2_subset,m4_instruct_scannet_subset,m4_instruct_spot_the_diff_subset,video_0_30_s_activitynetqa_oe,video_0_30_s_nextqa_oe,video_0_30_s_nextqa_mc,video_1_2_m_activitynetqa_oe,video_1_2_m_nextqa_oe,video_1_2_m_nextqa_mc,video_2_3_m_activitynetqa_oe,video_30_60_s_activitynetqa_oe,video_30_60_s_nextqa_oe,video_30_60_s_nextqa_mc,instruction_gen_r2r,instruction_gen_rvr,instruction_gen_rxr,instruction_gen_soon}
+datasets=${DATASETS:-llava_nav_v8}
 # Output configuration
-run_name=${RUN_NAME:-qwen2_5_vl_3b_co_training_mix}
-output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen25_vl_3b_co_training_mix}
+run_name=${RUN_NAME:-qwen25_vl_3b_lr1e-5_epoch1_ac4_text_geo_mp3d_v2_shift_pano_6-8}
+output_dir=${OUTPUT_DIR:-/root/autodl-tmp/output/qwen25_vl_3b_lr1e-5_epoch1_ac4_text_geo_mp3d_v2_shift_pano_6-8}
 report_to=${REPORT_TO:-none}
 video_reader_backend=${VIDEO_READER_BACKEND:-decord}
 

@@ -65,16 +65,16 @@ M4_INSTRUCT_SPOT_THE_DIFF_SUBSET = {
 }
 
 LLAVA_NAV_V8 = {
-    "annotation_path": "/root/autodl-tmp/co-training-data/v8/llava_nav_instruct_train_co.json",
-    "data_path": "/root/autodl-tmp/co-training-data",
+    "annotation_path": "/root/autodl-fs/mp3d-anno-80k-r2r-text-geo-v2/llava_nav_instruct_train_large_v4.json",
+    "data_path": "/root/autodl-tmp",
     "nav_graph": True,
     "use_geo_token": False,
     "use_pano_shift": True,
-    "pano_shift_path": "/root/autodl-tmp/co-training-data/v8/R2R_train_enc_skybox_cropped_shift.json",
-    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v8/gmap_pair_dist_train.npz",
-    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/v8/gmap_pos_fts_train.npz",
-    "cand_viewids_path": "/root/autodl-tmp/co-training-data/v8/cand_viewids_list_train.json",
-    "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
+    "pano_shift_path": "/root/autodl-fs/mp3d_data_cropped_shift_annotations/R2R_train_enc_skybox_cropped_shift.json",
+    "nav_pair_dist_path": "/root/autodl-fs/mp3d-anno-80k-r2r-text-geo-v2/gmap_pair_dist_train_v4.npz",
+    "nav_pos_fts_path": "",
+    "cand_viewids_path": "/root/autodl-fs/mp3d-anno-80k-r2r-text-geo-v2/cand_viewids_list.json",
+    "nav_view_root": "/root/autodl-tmp/view_images_bgr_from_mattersim",
 }
 
 LLAVA_NAV_V4_150K = {
