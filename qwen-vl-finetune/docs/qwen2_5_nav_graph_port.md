@@ -14,6 +14,8 @@ Implemented goals:
 - Add a per-layer learnable `sprel_linear` in the Qwen2.5-VL / Qwen3-VL text decoder.
 - Merge graph bias into the decoder attention mask.
 - Force navigation-graph training onto `sdpa` and disable packing / flatten mode.
+- Optionally shift R2R cropped historical/current panoramas so their visual
+  centers align with the path direction.
 
 Not enabled by default:
 
@@ -26,6 +28,8 @@ Not enabled by default:
     - `llava_nav_v8`
     - `tagavlm_dagger_r2r_20260412_193919`
   - Added support for passing a direct local JSON path in `dataset_use`.
+  - Added `use_pano_shift` and `pano_shift_path` to the `llava_nav_v8` preset
+    and dataset statistics output.
 
 - `qwen-vl-finetune/qwenvl/data/nav_utils.py`
   - New helper module.
@@ -34,12 +38,22 @@ Not enabled by default:
     - `.npz` loading
     - token-to-node mapping
     - node-distance expansion into token-level `graph_sprels`
+    - R2R cropped-panorama shift label loading and horizontal `np.roll`
+      alignment for direct `mp3d_data_cropped/` historical/current images
+  - Candidate-view images remain unshifted.
 
 - `qwen-vl-finetune/qwenvl/data/data_processor.py`
   - Supports candidate-view stitching during message build.
   - Attaches navigation metadata per sample.
+  - Propagates `use_pano_shift` / `pano_shift_path` from dataset config into
+    samples and passes the shift label path into image resolution only when the
+    switch is enabled.
   - Builds per-sample `graph_sprels`.
   - Pads `graph_sprels` in the collator for mixed navigation / VQA batches.
+
+- `qwen-vl-finetune/docs/r2r_cropped_pano_shift.md`
+  - Documents the R2R cropped panorama shift label format, runtime behavior,
+    dataset switch, data placement, and local validation snippet.
 
 - `qwen-vl-finetune/qwenvl/train/argument.py`
   - Added `DataArguments.use_nav_graph`.
@@ -97,6 +111,8 @@ Current presets assume these paths:
   - `/root/autodl-fs/view_images_bgr_from_mattersim.h5`
 - Matterport skybox root:
   - `/root/autodl-tmp/mp3d_data_cropped`
+- R2R cropped panorama shift labels for `llava_nav_v8`:
+  - `/root/autodl-tmp/co-training-data/v8/R2R_train_enc_skybox_cropped_shift.json`
 - DAgger R2R annotations:
   - `/home/data/ljx/tagavlm_dager_data/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json`
 - DAgger R2R pair-distance npz:
@@ -148,6 +164,10 @@ Even if `--attn_implementation` is omitted, nav mode will force `sdpa`.
 Completed:
 
 - Python syntax check with `py_compile` for the modified training/data/model files.
+- R2R cropped panorama shift check: `resolve_nav_image()` output matched manual
+  `np.roll(raw, roll_px_applied, axis=1)` on sample `6250_0_0`.
+- Candidate-view resolution check: candidate specs from sample `6250_0_0`
+  resolved to MatterSim view images while the pano shift path was enabled.
 
 Not completed in this environment:
 
@@ -163,3 +183,6 @@ The current shell Python here does not have all training dependencies installed,
 - `use_geo_token` is intentionally left inactive and should remain off unless separately validated.
 - Navigation graph mode currently disables `data_flatten` / `data_packing`.
 - The implementation assumes one graph-distance matrix per sample id in the configured `.npz`.
+- R2R panorama shifting only applies to direct cropped panorama paths containing
+  `mp3d_data_cropped/`; it is not used for candidate-view ids or non-cropped
+  skybox images.
