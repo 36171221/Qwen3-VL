@@ -68,7 +68,11 @@ LLAVA_NAV_V8 = {
     "annotation_path": "/root/autodl-tmp/co-training-data/v8/llava_nav_instruct_train_co.json",
     "data_path": "/root/autodl-tmp/co-training-data",
     "nav_graph": True,
+    "use_geo_token": False,
+    "use_pano_shift": True,
+    "pano_shift_path": "/root/autodl-tmp/co-training-data/v8/R2R_train_enc_skybox_cropped_shift.json",
     "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v8/gmap_pair_dist_train.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/v8/gmap_pos_fts_train.npz",
     "cand_viewids_path": "/root/autodl-tmp/co-training-data/v8/cand_viewids_list_train.json",
     "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
 }
@@ -77,7 +81,13 @@ LLAVA_NAV_V4_150K = {
     "annotation_path": "/root/autodl-tmp/co-training-data/v4-150k/llava_nav_instruct_train_v7_final_co.json",
     "data_path": "/root/autodl-tmp/co-training-data",
     "nav_graph": True,
+<<<<<<< HEAD
     "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pair_dist_train_v7_combined.npz",
+=======
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pair_dist_train_v7_combined.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pos_fts_train_v7_combined.npz",
+>>>>>>> feature/pano-correction
     "cand_viewids_path": "/root/autodl-tmp/co-training-data/v4-150k/cand_viewids_list_train_v7_final.json",
     "nav_view_root": [
         "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
@@ -89,7 +99,83 @@ TAGAVLM_DAGGER_R2R_20260412_193919 = {
     "annotation_path": "/root/autodl-tmp/finetuning_data_gen_r2r/20260412_193919/finetuning_lables.json",
     "data_path": "/root/autodl-tmp",
     "nav_graph": True,
+    "use_geo_token": False,
     "nav_pair_dist_path": "/root/autodl-tmp/finetuning_data_gen_r2r/20260412_193919/gmap_pair_dist.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/finetuning_data_gen_r2r/20260412_193919/gmap_pos_fts.npz",
+}
+
+FINETUNING_DATA_GEN = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen/finetuning_lables.json",
+    "data_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen/images",
+    "nav_graph": True,
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen/gmap_pair_dist.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen/gmap_pos_fts.npz",
+}
+
+FINETUNING_DATA_GEN_RXR_COMPRESSED = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen_rxr_compressed/finetuning_lables_co.json",
+    "data_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen_rxr_compressed/images",
+    "nav_graph": True,
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen_rxr_compressed/gmap_pair_dist.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/finetuning_data_gen_rxr_compressed/gmap_pos_fts.npz",
+    "path_prefix_replacements": {
+        "finetuning_data_gen_rxr/images/": "",
+    },
+}
+
+MP3D_ANNO_RXR = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rxr/llava_nav_instruct_rxr_train.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+    "nav_graph": True,
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rxr/gmap_pair_dist_rxr_train.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rxr/gmap_pos_fts_rxr_train.npz",
+    "cand_viewids_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rxr/cand_viewids_list_rxr_train.json",
+    "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
+}
+
+MP3D_ANNO_RVR = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rvr/llava_nav_instruct_rvr_train.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+    "nav_graph": True,
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rvr/gmap_pair_dist_rvr_train.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rvr/gmap_pos_fts_rvr_train.npz",
+    "cand_viewids_path": "/root/autodl-tmp/co-training-data/mp3d-anno-rvr/cand_viewids_list_rvr_train.json",
+    "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
+}
+
+MP3D_ANNO_SOON = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/mp3d-anno-soon/llava_nav_instruct_soon_train.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+    "nav_graph": True,
+    "use_geo_token": False,
+    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/mp3d-anno-soon/gmap_pair_dist_soon_train.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/mp3d-anno-soon/gmap_pos_fts_soon_train.npz",
+    "cand_viewids_path": "/root/autodl-tmp/co-training-data/mp3d-anno-soon/cand_viewids_list_soon_train.json",
+    "nav_view_root": "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
+}
+
+INSTRUCTION_GEN_R2R = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/instruction_gen_r2r.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+}
+
+INSTRUCTION_GEN_RVR = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/instruction_gen_rvr.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+}
+
+INSTRUCTION_GEN_RXR = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/instruction_gen_rxr.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
+}
+
+INSTRUCTION_GEN_SOON = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/instruction_gen_soon.json",
+    "data_path": "/root/autodl-tmp/co-training-data",
 }
 
 FINETUNING_DATA_GEN = {
@@ -160,7 +246,59 @@ VLNCE_ORACLE = {
     "annotation_path": "/root/autodl-fs/finetuning_lables_co.json",
     "data_path": "/root/autodl-tmp",
     "nav_graph": True,
+    "use_geo_token": False,
     "nav_pair_dist_path": "/root/autodl-tmp/finetuning_data_gen_r2r/gmap_pair_dist.npz",
+    "nav_pos_fts_path": "/root/autodl-tmp/finetuning_data_gen_r2r/gmap_pos_fts.npz",
+}
+
+VIDEO_0_30_S_ACTIVITYNETQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/0_30_s_activitynetqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/0_30_s_activitynetqa",
+}
+
+VIDEO_0_30_S_NEXTQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/0_30_s_nextqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/0_30_s_nextqa",
+}
+
+VIDEO_0_30_S_NEXTQA_MC = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/0_30_s_nextqa_mc_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/0_30_s_nextqa",
+}
+
+VIDEO_1_2_M_ACTIVITYNETQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/1_2_m_activitynetqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/1_2_m_activitynetqa",
+}
+
+VIDEO_1_2_M_NEXTQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/1_2_m_nextqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/1_2_m_nextqa",
+}
+
+VIDEO_1_2_M_NEXTQA_MC = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/1_2_m_nextqa_mc_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/1_2_m_nextqa",
+}
+
+VIDEO_2_3_M_ACTIVITYNETQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/2_3_m_activitynetqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/2_3_m_activitynetqa",
+}
+
+VIDEO_30_60_S_ACTIVITYNETQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/30_60_s_activitynetqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/30_60_s_activitynetqa",
+}
+
+VIDEO_30_60_S_NEXTQA_OE = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/30_60_s_nextqa_oe_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/30_60_s_nextqa",
+}
+
+VIDEO_30_60_S_NEXTQA_MC = {
+    "annotation_path": "/root/autodl-tmp/co-training-data/30_60_s_nextqa_mc_qa_processed.json",
+    "data_path": "/root/autodl-tmp/co-training-data/30_60_s_nextqa",
 }
 
 VIDEO_0_30_S_ACTIVITYNETQA_OE = {
@@ -340,6 +478,11 @@ def dataset_statistics(dataset_names):
                 "raw_count": raw_count,
                 "effective_count": effective_count,
                 "nav_graph": bool(config.get("nav_graph", False)),
+<<<<<<< HEAD
+=======
+                "use_pano_shift": bool(config.get("use_pano_shift", False)),
+                "pano_shift_path": config.get("pano_shift_path"),
+>>>>>>> feature/pano-correction
                 "annotation_exists": exists,
             }
         )

@@ -1471,8 +1471,64 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         super().__init__(config)
         self.model = Qwen2_5_VLModel(config)
         self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+        self.nav_geo_dim = getattr(config, "nav_geo_dim", 7)
+        self.geo_token_id = None
+        if bool(getattr(config, "use_geo_token", False)):
+            self.geo_token_projector = nn.Sequential(
+                nn.Linear(self.nav_geo_dim, config.text_config.hidden_size),
+                nn.GELU(),
+                nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size),
+                Qwen2RMSNorm(config.text_config.hidden_size, eps=config.text_config.rms_norm_eps),
+            )
 
         self.post_init()
+
+    def _use_geo_token(self) -> bool:
+        return bool(getattr(self.config, "use_geo_token", False))
+
+    def _resolve_geo_token_id(self) -> Optional[int]:
+        if self.geo_token_id is not None:
+            return self.geo_token_id
+        configured_geo_token_id = getattr(self.config, "geo_token_id", None)
+        if configured_geo_token_id is not None:
+            self.geo_token_id = int(configured_geo_token_id)
+            return self.geo_token_id
+        added_vocab = self.get_input_embeddings().num_embeddings - self.config.text_config.vocab_size
+        if added_vocab <= 0:
+            return None
+        # train_qwen.py appends special tokens in a fixed order and <geo> is second.
+        self.geo_token_id = self.config.text_config.vocab_size + 1
+        return self.geo_token_id
+
+    def _build_geo_token_embeds(
+        self,
+        pos_fts: Optional[torch.Tensor],
+        num_nodes: int,
+        embed_dtype: torch.dtype,
+        device: torch.device,
+    ) -> Optional[torch.Tensor]:
+        if (not self._use_geo_token()) or pos_fts is None or num_nodes <= 0:
+            return None
+
+        if isinstance(pos_fts, torch.Tensor):
+            pos_tensor = pos_fts.to(device=device, dtype=torch.float32)
+        else:
+            pos_tensor = torch.as_tensor(pos_fts, dtype=torch.float32, device=device)
+
+        if pos_tensor.ndim == 1:
+            pos_tensor = pos_tensor.unsqueeze(0)
+
+        if pos_tensor.shape[0] == num_nodes + 1:
+            pos_tensor = pos_tensor[1:]
+
+        projector_dtype = next(self.geo_token_projector.parameters()).dtype
+        aligned = torch.zeros((num_nodes, self.nav_geo_dim), dtype=projector_dtype, device=device)
+        if pos_tensor.numel() > 0:
+            copy_rows = min(num_nodes, pos_tensor.shape[0])
+            copy_cols = min(self.nav_geo_dim, pos_tensor.shape[1])
+            aligned[:copy_rows, :copy_cols] = pos_tensor[:copy_rows, :copy_cols].to(dtype=projector_dtype)
+
+        return self.geo_token_projector(aligned).to(dtype=embed_dtype)
 
     def get_input_embeddings(self):
         return self.model.get_input_embeddings()
@@ -1524,6 +1580,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         cache_position: Optional[torch.LongTensor] = None,
         second_per_grid_ts: Optional[torch.Tensor] = None,
         graph_sprels: Optional[torch.Tensor] = None,
+        nav_pos_fts: Optional[torch.Tensor] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> Union[tuple, Qwen2_5_VLCausalLMOutputWithPast]:
@@ -1577,8 +1634,36 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
+        if inputs_embeds is None and input_ids is not None:
+            inputs_embeds = self.get_input_embeddings()(input_ids)
+
+        if self._use_geo_token() and input_ids is not None and inputs_embeds is not None:
+            geo_token_id = self._resolve_geo_token_id()
+            if geo_token_id is not None:
+                if isinstance(nav_pos_fts, (list, tuple)):
+                    nav_pos_fts_list = list(nav_pos_fts)
+                elif nav_pos_fts is None:
+                    nav_pos_fts_list = [None] * input_ids.shape[0]
+                else:
+                    nav_pos_fts_list = [nav_pos_fts] * input_ids.shape[0]
+
+                for batch_idx in range(input_ids.shape[0]):
+                    geo_positions = torch.where(input_ids[batch_idx] == geo_token_id)[0]
+                    if geo_positions.numel() == 0:
+                        continue
+                    geo_embeds = self._build_geo_token_embeds(
+                        nav_pos_fts_list[batch_idx] if batch_idx < len(nav_pos_fts_list) else None,
+                        num_nodes=int(geo_positions.numel()),
+                        embed_dtype=inputs_embeds.dtype,
+                        device=inputs_embeds.device,
+                    )
+                    if geo_embeds is None:
+                        continue
+                    copy_rows = min(geo_positions.numel(), geo_embeds.shape[0])
+                    inputs_embeds[batch_idx, geo_positions[:copy_rows], :] = geo_embeds[:copy_rows]
+
         outputs = self.model(
-            input_ids=input_ids,
+            input_ids=None if inputs_embeds is not None else input_ids,
             pixel_values=pixel_values,
             pixel_values_videos=pixel_values_videos,
             image_grid_thw=image_grid_thw,
@@ -1633,6 +1718,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         video_grid_thw=None,
         second_per_grid_ts=None,
         graph_sprels=None,
+        nav_pos_fts=None,
         **kwargs,
     ):
         # Overwritten -- in specific circumstances we don't want to forward image inputs to the model
@@ -1688,6 +1774,8 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
         if graph_sprels is not None:
             model_inputs["graph_sprels"] = graph_sprels
+        if nav_pos_fts is not None:
+            model_inputs["nav_pos_fts"] = nav_pos_fts
 
         return model_inputs
 

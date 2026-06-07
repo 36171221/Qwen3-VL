@@ -16,6 +16,8 @@ class DataArguments:
     data_flatten: bool = field(default=False)
     data_packing: bool = field(default=False)
     use_nav_graph: bool = field(default=False)
+    use_geo_token: Optional[bool] = field(default=None)
+    nav_geo_dim: int = field(default=7)
     base_interval: int = field(default=2)
     max_pixels: int = field(default=28 * 28 * 576)
     min_pixels: int = field(default=28 * 28 * 16)

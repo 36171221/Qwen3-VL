@@ -1,4 +1,5 @@
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
@@ -37,13 +38,120 @@ def load_npz_cached(path: str):
 
 
 @lru_cache(maxsize=8)
+def load_pano_shift_index(path: str) -> Dict[str, Any]:
+    """Load R2R cropped-pano shift labels for fast image-path lookup."""
+    label_path = Path(path)
+    if not label_path.exists():
+        raise FileNotFoundError(f"Panorama shift label file not found: {path}")
+
+    by_path: dict[str, dict[str, int]] = {}
+    by_viewpoint: dict[str, dict[str, int]] = {}
+
+    def add_step(path_id: Any, step: dict[str, Any]) -> None:
+        path_key = str(path_id)
+        rel_path = step.get("image_rel_path")
+        viewpoint = step.get("viewpoint")
+        roll_px = int(step["roll_px_applied"])
+        step_idx = int(step["step"])
+        if rel_path:
+            by_path.setdefault(path_key, {})[str(rel_path)] = roll_px
+            by_path[path_key][Path(str(rel_path)).as_posix()] = roll_px
+        if viewpoint:
+            by_viewpoint.setdefault(path_key, {})[str(viewpoint)] = roll_px
+        by_viewpoint.setdefault(path_key, {})[str(step_idx)] = roll_px
+
+    if label_path.suffix == ".jsonl":
+        with label_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                record = json.loads(line)
+                add_step(record["path_id"], record)
+    else:
+        payload = load_json_cached(str(label_path))
+        for item in payload.get("items", []):
+            for step in item.get("steps", []):
+                add_step(item["path_id"], step)
+
+    return {"by_path": by_path, "by_viewpoint": by_viewpoint}
+
+
+@lru_cache(maxsize=8)
 def load_hdf5_cached(path: str):
     if h5py is None:
         raise ImportError("h5py is required to load candidate-view hdf5 files.")
     return h5py.File(path, "r")
 
 
-def _open_direct_image(image_spec: Any, base_path: Path) -> Optional[Image.Image]:
+def _parse_sample_path_id(sample_id: Optional[str]) -> Optional[str]:
+    if sample_id is None:
+        return None
+    sample_id = str(sample_id)
+    match = re.match(r"^([^_]+)_", sample_id)
+    if match:
+        return match.group(1)
+    return sample_id or None
+
+
+def _extract_mp3d_cropped_rel_path(image_spec: str, candidate: Path) -> Optional[str]:
+    marker = "mp3d_data_cropped/"
+    for value in (image_spec, candidate.as_posix()):
+        if marker in value:
+            return value.split(marker, 1)[1]
+    return None
+
+
+def _extract_viewpoint_from_cropped_rel_path(rel_path: str) -> Optional[str]:
+    filename = Path(rel_path).name
+    suffix = "_skybox_small_cropped.jpg"
+    if not filename.endswith(suffix):
+        return None
+    return filename[: -len(suffix)]
+
+
+def _lookup_pano_roll_px(
+    image_spec: str,
+    candidate: Path,
+    sample_id: Optional[str],
+    pano_shift_path: Optional[str],
+) -> Optional[int]:
+    if not pano_shift_path:
+        return None
+    rel_path = _extract_mp3d_cropped_rel_path(image_spec, candidate)
+    if not rel_path:
+        return None
+    path_id = _parse_sample_path_id(sample_id)
+    if path_id is None:
+        return None
+
+    index = load_pano_shift_index(pano_shift_path)
+    rel_path = Path(rel_path).as_posix()
+    path_rolls = index["by_path"].get(path_id, {})
+    if rel_path in path_rolls:
+        return int(path_rolls[rel_path])
+
+    viewpoint = _extract_viewpoint_from_cropped_rel_path(rel_path)
+    if viewpoint is not None:
+        vp_rolls = index["by_viewpoint"].get(path_id, {})
+        if viewpoint in vp_rolls:
+            return int(vp_rolls[viewpoint])
+    return None
+
+
+def _roll_image(image: Image.Image, roll_px: int) -> Image.Image:
+    if roll_px == 0:
+        return image
+    array = np.asarray(image)
+    return Image.fromarray(np.roll(array, int(roll_px), axis=1)).convert("RGB")
+
+
+def _open_direct_image(
+    image_spec: Any,
+    base_path: Path,
+    sample_id: Optional[str] = None,
+    pano_shift_path: Optional[str] = None,
+) -> Optional[Image.Image]:
     if isinstance(image_spec, Image.Image):
         return image_spec.convert("RGB")
     if isinstance(image_spec, np.ndarray) or torch.is_tensor(image_spec):
@@ -64,7 +172,16 @@ def _open_direct_image(image_spec: Any, base_path: Path) -> Optional[Image.Image
 
     for candidate in candidates:
         if candidate.exists():
-            return Image.open(candidate).convert("RGB")
+            image = Image.open(candidate).convert("RGB")
+            roll_px = _lookup_pano_roll_px(
+                image_spec,
+                candidate,
+                sample_id=sample_id,
+                pano_shift_path=pano_shift_path,
+            )
+            if roll_px is not None:
+                image = _roll_image(image, roll_px)
+            return image
     return None
 
 
@@ -85,8 +202,17 @@ def resolve_nav_image(
     cand_viewids_path: Optional[str] = None,
     nav_view_hdf5_path: Optional[str] = None,
     nav_view_root: Optional[str | Sequence[str]] = None,
+<<<<<<< HEAD
+=======
+    pano_shift_path: Optional[str] = None,
+>>>>>>> feature/pano-correction
 ) -> Image.Image:
-    direct_image = _open_direct_image(image_spec, base_path)
+    direct_image = _open_direct_image(
+        image_spec,
+        base_path,
+        sample_id=sample_id,
+        pano_shift_path=pano_shift_path,
+    )
     if direct_image is not None:
         return direct_image
 
