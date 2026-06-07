@@ -81,13 +81,9 @@ LLAVA_NAV_V4_150K = {
     "annotation_path": "/root/autodl-tmp/co-training-data/v4-150k/llava_nav_instruct_train_v7_final_co.json",
     "data_path": "/root/autodl-tmp/co-training-data",
     "nav_graph": True,
-<<<<<<< HEAD
-    "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pair_dist_train_v7_combined.npz",
-=======
     "use_geo_token": False,
     "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pair_dist_train_v7_combined.npz",
     "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/v4-150k/gmap_pos_fts_train_v7_combined.npz",
->>>>>>> feature/pano-correction
     "cand_viewids_path": "/root/autodl-tmp/co-training-data/v4-150k/cand_viewids_list_train_v7_final.json",
     "nav_view_root": [
         "/root/autodl-tmp/co-training-data/view_images_bgr_from_mattersim",
@@ -478,11 +474,8 @@ def dataset_statistics(dataset_names):
                 "raw_count": raw_count,
                 "effective_count": effective_count,
                 "nav_graph": bool(config.get("nav_graph", False)),
-<<<<<<< HEAD
-=======
                 "use_pano_shift": bool(config.get("use_pano_shift", False)),
                 "pano_shift_path": config.get("pano_shift_path"),
->>>>>>> feature/pano-correction
                 "annotation_exists": exists,
             }
         )
