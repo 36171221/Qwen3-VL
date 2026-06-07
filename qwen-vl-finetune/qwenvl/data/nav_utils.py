@@ -202,10 +202,7 @@ def resolve_nav_image(
     cand_viewids_path: Optional[str] = None,
     nav_view_hdf5_path: Optional[str] = None,
     nav_view_root: Optional[str | Sequence[str]] = None,
-<<<<<<< HEAD
-=======
     pano_shift_path: Optional[str] = None,
->>>>>>> feature/pano-correction
 ) -> Image.Image:
     direct_image = _open_direct_image(
         image_spec,

@@ -226,12 +226,9 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
             # Some video annotations still use <image> as the placeholder for video.
             if video_pool and not image_pool and "<video>" not in text and "<image>" in text:
                 text = text.replace("<image>", "<video>")
-<<<<<<< HEAD
-=======
             if item.get("use_geo_token") and "<geo>" not in text and "<image>" in text:
                 text = text.replace("<image>", "<geo><image>")
 
->>>>>>> feature/pano-correction
             # Split text by <image> or <video> placeholders while keeping delimiters
             text_parts = re.split(r"(<geo>|<image>|<video>)", text)
 
@@ -400,14 +397,10 @@ class LazySupervisedDataset(Dataset):
                             "cand_viewids_path",
                             "nav_view_hdf5_path",
                             "nav_view_root",
-<<<<<<< HEAD
-                            "path_prefix_replacements",
-=======
                             "use_pano_shift",
                             "pano_shift_path",
                             "path_prefix_replacements",
                             "use_geo_token",
->>>>>>> feature/pano-correction
                         ):
                             if key in data:
                                 sub_ann[key] = data[key]
@@ -420,14 +413,10 @@ class LazySupervisedDataset(Dataset):
                         "cand_viewids_path",
                         "nav_view_hdf5_path",
                         "nav_view_root",
-<<<<<<< HEAD
-                        "path_prefix_replacements",
-=======
                         "use_pano_shift",
                         "pano_shift_path",
                         "path_prefix_replacements",
                         "use_geo_token",
->>>>>>> feature/pano-correction
                     ):
                         if key in data:
                             ann[key] = data[key]
