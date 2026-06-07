@@ -69,6 +69,8 @@ LLAVA_NAV_V8 = {
     "data_path": "/root/autodl-tmp/co-training-data",
     "nav_graph": True,
     "use_geo_token": False,
+    "use_pano_shift": True,
+    "pano_shift_path": "/root/autodl-tmp/co-training-data/v8/R2R_train_enc_skybox_cropped_shift.json",
     "nav_pair_dist_path": "/root/autodl-tmp/co-training-data/v8/gmap_pair_dist_train.npz",
     "nav_pos_fts_path": "/root/autodl-tmp/co-training-data/v8/gmap_pos_fts_train.npz",
     "cand_viewids_path": "/root/autodl-tmp/co-training-data/v8/cand_viewids_list_train.json",
@@ -358,6 +360,8 @@ def dataset_statistics(dataset_names):
                 "raw_count": raw_count,
                 "effective_count": effective_count,
                 "nav_graph": bool(config.get("nav_graph", False)),
+                "use_pano_shift": bool(config.get("use_pano_shift", False)),
+                "pano_shift_path": config.get("pano_shift_path"),
                 "annotation_exists": exists,
             }
         )

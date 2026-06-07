@@ -252,6 +252,9 @@ def _build_messages(item: Dict[str, Any], base_path: Path) -> List[Dict[str, Any
                                     cand_viewids_path=item.get("cand_viewids_path"),
                                     nav_view_hdf5_path=item.get("nav_view_hdf5_path"),
                                     nav_view_root=item.get("nav_view_root"),
+                                    pano_shift_path=item.get("pano_shift_path")
+                                    if item.get("use_pano_shift")
+                                    else None,
                                 ),
                             }
                         )
@@ -394,6 +397,8 @@ class LazySupervisedDataset(Dataset):
                             "cand_viewids_path",
                             "nav_view_hdf5_path",
                             "nav_view_root",
+                            "use_pano_shift",
+                            "pano_shift_path",
                             "path_prefix_replacements",
                             "use_geo_token",
                         ):
@@ -408,6 +413,8 @@ class LazySupervisedDataset(Dataset):
                         "cand_viewids_path",
                         "nav_view_hdf5_path",
                         "nav_view_root",
+                        "use_pano_shift",
+                        "pano_shift_path",
                         "path_prefix_replacements",
                         "use_geo_token",
                     ):
