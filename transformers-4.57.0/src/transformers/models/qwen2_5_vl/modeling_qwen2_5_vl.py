@@ -1521,11 +1521,12 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         if pos_tensor.shape[0] == num_nodes + 1:
             pos_tensor = pos_tensor[1:]
 
-        aligned = torch.zeros((num_nodes, self.nav_geo_dim), dtype=torch.float32, device=device)
+        projector_dtype = next(self.geo_token_projector.parameters()).dtype
+        aligned = torch.zeros((num_nodes, self.nav_geo_dim), dtype=projector_dtype, device=device)
         if pos_tensor.numel() > 0:
             copy_rows = min(num_nodes, pos_tensor.shape[0])
             copy_cols = min(self.nav_geo_dim, pos_tensor.shape[1])
-            aligned[:copy_rows, :copy_cols] = pos_tensor[:copy_rows, :copy_cols]
+            aligned[:copy_rows, :copy_cols] = pos_tensor[:copy_rows, :copy_cols].to(dtype=projector_dtype)
 
         return self.geo_token_projector(aligned).to(dtype=embed_dtype)
 
